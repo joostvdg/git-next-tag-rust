@@ -10,3 +10,7 @@ run-verbose:
 
 test:
 	cargo test
+
+
+dpush:
+	docker buildx build -t caladreas/git-next-tag-rust:0.1.0-rc04 . --push

@@ -2,12 +2,34 @@
 name = "git-next-tag"
 version = "0.1.0"
 edition = "2021"
+authors = ["Joost van der Griendt <joostvdg@gmail.com>"]
+license = "MIT"
+description = "An CLI for calculating the next tag for a git repository."
+readme = "README.md"
+homepage = "https://github.com/joostvdg/git-next-tag-rust"
+repository = "https://github.com/joostvdg/git-next-tag-rust"
+keywords = ["cli", "git", "tag", "version"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "git-next-tag"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.70"
+assert_fs = "1.0.12"
 clap = { version = "4.1.11", features = ["derive"] }
 clap-verbosity-flag = "2.0.0"
 env_logger = "0.10.0"
 log = "0.4.17"
+
+[dev-dependencies]
+assert_cmd = "2.0.8"
+predicates = "2.1.5"
+
+# see https://joshleeb.com/posts/rust-integration-tests.html
+[[test]]
+name = "integration"
+path = "src/tests/integration_test.rs"
