@@ -15,8 +15,11 @@ struct Cli {
     verbose: Verbosity,
 
     /// The pattern to look for
+    #[arg(required = true, short = 'p', long = "pattern")]
     pattern: String,
+
     /// The path to the file to read
+    #[arg(required = true, short = 'f', long = "file")]
     path: std::path::PathBuf,
 }
 
@@ -44,6 +47,3 @@ fn main()  {
     }
 
 }
-
-
-

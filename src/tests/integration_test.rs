@@ -10,11 +10,12 @@ use assert_fs::prelude::*; // Used for creating a file named "lorem.txt"
 fn file_not_found() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("git-next-tag")?;
 
-    cmd.arg("lorem").arg("not-found.txt");
+    cmd.arg("--pattern").arg("lorem")
+        .arg("--file").arg("not-found.txt");
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("No such file or directory"));
-
+        .stdout(predicate::str::contains("No such file or directory"));
+    cmd.assert().failure().code(exitcode::IOERR);
     Ok(())
 }
 
@@ -25,7 +26,8 @@ fn find_content_in_file() -> Result<(), Box<dyn std::error::Error>> {
     lorem.write_str("lorem ipsum\ndolor sit amet\n")?;
 
     let mut cmd = Command::cargo_bin("git-next-tag")?;
-    cmd.arg("lorem").arg(lorem.path());
+    cmd.arg("--pattern").arg("lorem")
+        .arg("--file").arg(lorem.path());
     cmd.assert().success().stdout("1: lorem ipsum");
 
     Ok(())
