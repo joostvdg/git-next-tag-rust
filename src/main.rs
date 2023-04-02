@@ -1,6 +1,6 @@
+use std::io::Write;
 use clap::Parser;
 use clap_verbosity_flag::{Verbosity};
-use anyhow::{Context, Result};
 use log::{info};
 use env_logger::{Builder, Target};
 use std::process;
@@ -14,13 +14,17 @@ struct Cli {
     #[command(flatten)]
     verbose: Verbosity,
 
-    /// The pattern to look for
-    #[arg(required = true, short = 'p', long = "pattern")]
-    pattern: String,
+    /// The base of tag version to amend (e.g., 1.10, to find the next patch 1.10.X)
+    #[arg(required = true, short = 'b', long = "baseTag")]
+    base_tag: String,
 
-    /// The path to the file to read
-    #[arg(required = true, short = 'f', long = "file")]
+    /// The path where to execute the git tag command
+    #[arg(required = true, short = 'p', long = "path", default_value = ".")]
     path: std::path::PathBuf,
+
+    /// The path (file) where to output result to
+    #[arg(short = 'o', long = "outputPath")]
+    output_path: Option<std::path::PathBuf>,
 }
 
 fn main()  {
@@ -30,20 +34,16 @@ fn main()  {
     builder.target(Target::Stdout)
         .filter_level(args.verbose.log_level_filter())
         .init();
-    info!("Starting up");
+    debug!("Starting up");
     debug!("{:?}", args);
 
-    let content_reading_result = std::fs::read_to_string(&args.path);
-    match content_reading_result {
-        Ok(content) => {
-            debug!("Reading file {}", &args.path.display());
-            git_next_tag::find_matches(&content, &args.pattern, &mut std::io::stdout());
-            process::exit(exitcode::OK);
-        },
-        Err(error) => {
-            error!("Could not read file `{}`: {}", &args.path.display(), error);
-            process::exit(exitcode::IOERR);
-        }
+    let path = args.path.to_str().unwrap();
+    let next_tag = git_next_tag::determine_nex_tag(&args.base_tag, path).unwrap();
+    info!("Next tag: {}", next_tag);
+
+    if let Some(output_path) = args.output_path {
+        let mut file = std::fs::File::create(output_path).unwrap();
+        file.write_all(next_tag.as_bytes()).unwrap();
     }
 
 }

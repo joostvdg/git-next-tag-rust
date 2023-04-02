@@ -1,0 +1,114 @@
+FROM rust AS base
+WORKDIR /app
+RUN apt-get update && apt-get upgrade -y && apt-get install -y musl-tools
+RUN rustup component add clippy
+RUN rustup component add rustfmt
+
+ARG TARGETPLATFORM
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    apt-get install -y g++-x86-64-linux-musl libc6-dev-amd64-cross ; \
+    rustup toolchain install stable-x86_64-unknown-linux-musl ; \
+    rustup target add x86_64-unknown-linux-musl ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    #
+    apt-get install -y g++-aarch64-unknown-linux-musl libc6-dev-arm64-cross clang llvm; \
+    rustup toolchain install stable-aarch64-unknown-linux-musl ; \
+    rustup target add aarch64-unknown-linux-musl ; \
+fi
+
+
+
+FROM base AS dependencies
+WORKDIR /app
+#initialize an empty application & replace the dependencies file with our own (yes cargo chef can do this, but I feel this is simpler...)
+RUN cargo init
+COPY Cargo.toml Cargo.lock /app
+ARG TARGETPLATFORM
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    TARGET=x86_64-unknown-linux-musl ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    TARGET="aarch64-unknown-linux-musl" ; \
+
+    # https://stackoverflow.com/a/65876959/5510158
+    CARGO_NET_GIT_FETCH_WITH_CLI=true ; \
+    CC_aarch64_unknown_linux_musl=clang ; \
+    AR_aarch64_unknown_linux_musl=llvm-ar ; \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ; \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu" ; \
+
+    # https://github.com/rust-lang/rustup/pull/2493/files#diff-6c28743bfac004b2bec8089383b35445808c55a24453f0c88cc9b0367205f9b7
+#    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc ; \
+#    RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-lgcc" ; \
+
+
+    # https://github.com/briansmith/ring/issues/1414#issuecomment-1055177218
+#    CC_aarch64_unknown_linux_musl=clang ; \
+#    AR_aarch64_unknown_linux_musl=llvm-ar ; \
+#    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ;\
+
+#    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-musl-gcc ; \
+#    export CC_aarch64_unknown_linux_gnu=aarch64-linux-musl-gcc ; \
+#    export CXX_aarch64_unknown_linux_gnu=aarch64-linux-musl-g++ ; \
+fi \
+&& cargo fetch --target $TARGET
+
+
+
+FROM dependencies AS source
+COPY src src
+
+
+
+FROM source AS build
+ARG TARGETPLATFORM
+RUN mkdir -p /build
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    TARGET=x86_64-unknown-linux-musl ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    TARGET=aarch64-unknown-linux-musl ; \
+    # https://stackoverflow.com/a/65876959/5510158
+    CARGO_NET_GIT_FETCH_WITH_CLI=true ; \
+    CC_aarch64_unknown_linux_musl=clang ; \
+    AR_aarch64_unknown_linux_musl=llvm-ar ; \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ; \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu" ; \
+
+    # https://github.com/rust-lang/rustup/pull/2493/files#diff-6c28743bfac004b2bec8089383b35445808c55a24453f0c88cc9b0367205f9b7
+#    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc ; \
+#    RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-lgcc" ; \
+
+    # https://github.com/briansmith/ring/issues/1414#issuecomment-1055177218
+#    CC_aarch64_unknown_linux_musl=clang ; \
+#    AR_aarch64_unknown_linux_musl=llvm-ar ; \
+#    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ;\
+
+#    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-musl-gcc ; \
+#    export CC_aarch64_unknown_linux_gnu=aarch64-linux-musl-gcc ; \
+#    export CXX_aarch64_unknown_linux_gnu=aarch64-linux-musl-g++ ; \
+fi \
+&& cargo build --release --bin git-next-tag --target $TARGET && mv /app/target/$TARGET/release /build/release
+
+
+
+FROM alpine/git:v2.36.3
+LABEL org.opencontainers.image.source = "https://github.com/joostvdg/git-next-tag-rust"
+WORKDIR /work/
+
+RUN adduser -D gitnexttag
+RUN chown gitnexttag /work \
+    && chmod "g+rwX" /work \
+    && chown gitnexttag:root /work
+
+COPY --from=build --chown=gitnexttag:root /build/release/git-next-tag .
+
+USER gitnexttag
+RUN ls -lath /work
+RUN ls -lath /work/git-next-tag
+RUN  ./git-next-tag --help
+
+RUN git config --global safe.directory '*'
+ENTRYPOINT ["./git-next-tag"]
+CMD ["--help"]

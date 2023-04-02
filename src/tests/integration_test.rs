@@ -1,3 +1,4 @@
+use std::io::stdout;
 use assert_cmd::prelude::*;
 // Add methods on commands
 use predicates::prelude::*;
@@ -7,29 +8,39 @@ use std::process::Command;
 use assert_fs::prelude::*; // Used for creating a file named "lorem.txt"
 
 #[test]
-fn file_not_found() -> Result<(), Box<dyn std::error::Error>> {
+fn writes_output_to_file() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = assert_fs::TempDir::new()?;
+    let output_path = temp.child("output.txt");
     let mut cmd = Command::cargo_bin("git-next-tag")?;
+    cmd.arg("--baseTag")
+        .arg("100.0")
+        .arg("--path")
+        .arg(".")
+        .arg("--outputPath")
+        .arg(output_path.path());
 
-    cmd.arg("--pattern").arg("lorem")
-        .arg("--file").arg("not-found.txt");
-    cmd.assert()
-        .failure()
-        .stdout(predicate::str::contains("No such file or directory"));
-    cmd.assert().failure().code(exitcode::IOERR);
+    cmd.assert().success();
+    output_path.assert("100.0.1");
     Ok(())
 }
 
 #[test]
-fn find_content_in_file() -> Result<(), Box<dyn std::error::Error>> {
-    let temp = assert_fs::TempDir::new()?;
-    let lorem = temp.child("lorem.txt");
-    lorem.write_str("lorem ipsum\ndolor sit amet\n")?;
-
+fn return_next_tag() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("git-next-tag")?;
-    cmd.arg("--pattern").arg("lorem")
-        .arg("--file").arg(lorem.path());
-    cmd.assert().success().stdout("1: lorem ipsum");
+    cmd.arg("--baseTag")
+        .arg("100.0")
+        .arg("--path")
+        .arg(".")
+        .arg("-vv");
 
+    cmd.assert().success().stdout(predicate::str::contains("100.0.1"));
+    Ok(())
+}
+
+#[test]
+fn fail_on_missing_base_tag() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    cmd.assert().failure().stderr(predicate::str::contains("the following required arguments were not provided"));
     Ok(())
 }
 

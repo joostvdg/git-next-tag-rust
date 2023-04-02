@@ -1,0 +1,73 @@
+FROM rust:slim-bookworm as builder
+WORKDIR /usr/src/git-next-tag
+
+ARG TARGETPLATFORM
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    apt-get install -y musl-tools g++-x86-64-linux-musl libc6-dev-amd64-cross ; \
+    rustup toolchain install stable-x86_64-unknown-linux-musl ; \
+    rustup target add x86_64-unknown-linux-musl ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    apt-get install -y g++-aarch64-unknown-linux-musl libc6-dev-arm64-cross clang llvm; \
+    rustup toolchain install stable-aarch64-unknown-linux-musl ; \
+    rustup target add aarch64-unknown-linux-musl ; \
+fi
+
+RUN rustup component add clippy
+RUN rustup component add rustfmt
+
+COPY dummy.rs .
+COPY Cargo.toml Cargo.lock ./
+RUN sed -i 's#src/main.rs#dummy.rs#' Cargo.toml
+
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    export TARGET="x86_64-unknown-linux-musl" ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    export TARGET="aarch64-unknown-linux-musl" ; \
+#    export CARGO_NET_GIT_FETCH_WITH_CLI=true ; \
+    export CC_aarch64_unknown_linux_musl=clang ; \
+    export AR_aarch64_unknown_linux_musl=llvm-ar ; \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ; \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu" ; \
+fi \
+&& cargo build --target $TARGET
+
+RUN sed -i 's#dummy.rs#src/main.rs#' Cargo.toml
+COPY src/ ./src
+RUN mkdir -p /build
+
+RUN \
+if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    export TARGET="x86_64-unknown-linux-musl" ; \
+elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    export TARGET="aarch64-unknown-linux-musl" ; \
+#    export CARGO_NET_GIT_FETCH_WITH_CLI=true ; \
+    export CC_aarch64_unknown_linux_musl=clang ; \
+    export AR_aarch64_unknown_linux_musl=llvm-ar ; \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld" ; \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu" ; \
+fi \
+&& cargo build --release --target=$TARGET && mv /usr/src/git-next-tag/target/$TARGET/release /build/release
+
+
+FROM alpine/git:v2.36.3
+LABEL org.opencontainers.image.source = "https://github.com/joostvdg/git-next-tag-rust"
+LABEL org.opencontainers.image.description ="git-next-tag is a tool to help you with the next version number of your project. It is based on the git history and the tags you have created. It is a simple tool that can be used in your CI/CD pipeline to determine the next version number of your project."
+WORKDIR /work/
+
+RUN adduser -D gitnexttag
+RUN chown gitnexttag /work \
+    && chmod "g+rwX" /work \
+    && chown gitnexttag:root /work
+
+COPY --from=builder --chown=gitnexttag:root /build/release/git-next-tag .
+
+USER gitnexttag
+RUN ls -lath /work
+RUN ls -lath /work/git-next-tag
+RUN  ./git-next-tag --help
+
+RUN git config --global safe.directory '*'
+ENTRYPOINT ["./git-next-tag"]
+CMD ["--help"]
