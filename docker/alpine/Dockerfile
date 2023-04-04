@@ -57,12 +57,9 @@ LABEL org.opencontainers.image.description ="git-next-tag is a tool to help you 
 LABEL org.opencontainers.image.authors ="Joost van der Griendt <joostvdg@gmail.com>"
 WORKDIR /work/
 
-RUN adduser -D gitnexttag
-RUN chown gitnexttag /work \
-    && chmod "g+rwX" /work \
-    && chown gitnexttag:root /work
+RUN addgroup -S appgroup && adduser -D -u 1000 gitnexttag -G appgroup -h /work
 
-COPY --from=build --chown=gitnexttag:root /build/release/git-next-tag .
+COPY --from=build --chown=gitnexttag:appgroup /build/release/git-next-tag .
 
 USER gitnexttag
 RUN ls -lath /work

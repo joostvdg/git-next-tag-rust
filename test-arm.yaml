@@ -6,12 +6,25 @@ metadata:
     run: git-next-tag-arm
   name: git-next-tag-arm
 spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 3000
+    fsGroup: 2000
   containers:
 #  - image: ghcr.io/joostvdg/git-next-tag:0.4.0-debian
-  - image: ghcr.io/joostvdg/git-next-tag:0.5.2-alpine
+  - image: ghcr.io/joostvdg/git-next-tag:0.5.4-alpine
     name: git-next-tag-arm
-    resources: {}
+    command: [ "sh", "-c", "sleep 1h" ]
+    volumeMounts:
+      - name: checkout
+        mountPath: /checkout
+    securityContext:
+      allowPrivilegeEscalation: false
   dnsPolicy: ClusterFirst
   restartPolicy: Always
   nodeSelector:
     beta.kubernetes.io/arch: arm64
+  volumes:
+    - name: checkout
+      emptyDir: {}
