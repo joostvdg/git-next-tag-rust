@@ -1,4 +1,3 @@
-use std::io::stdout;
 use assert_cmd::prelude::*;
 // Add methods on commands
 use predicates::prelude::*;

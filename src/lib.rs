@@ -1,5 +1,5 @@
 use std::process::Command;
-use log::{debug, error, info};
+use log::debug;
 
 pub fn find_matches(content: &str, pattern: &str, mut writer: impl std::io::Write) {
     let mut line_number = 0;

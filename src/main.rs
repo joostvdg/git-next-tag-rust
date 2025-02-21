@@ -3,7 +3,6 @@ use clap::Parser;
 use clap_verbosity_flag::{Verbosity};
 use log::{info};
 use env_logger::{Builder, Target};
-use std::process;
 
 #[macro_use]
 extern crate log;
