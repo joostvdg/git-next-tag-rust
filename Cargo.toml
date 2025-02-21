@@ -2,7 +2,7 @@
 name = "git-next-tag"
 version = "0.1.0"
 edition = "2021"
-authors = ["Joost van der Griendt <joostvdg@gmail.com>"]
+authors = ["Joost van der Griendt <dev@joostvdg.net>"]
 license = "MIT"
 description = "An CLI for calculating the next tag for a git repository."
 readme = "README.md"
@@ -34,4 +34,3 @@ predicates = "2.1.5"
 [[test]]
 name = "integration"
 path = "src/tests/integration_test.rs"
-
