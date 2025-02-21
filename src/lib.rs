@@ -16,7 +16,8 @@ pub fn determine_nex_tag(base_tag: &str, path: &str) -> Result<String, Box<dyn s
     let completed_base_tag = format!("{}.*", base_tag);
     let tags = query_git_tags(&completed_base_tag, path).expect("Could not list git tags");
     if tags.is_empty() {
-        return Ok(format!("{}.1", base_tag))
+        debug!("Could not find tags, returning .0");
+        return Ok(format!("{}.0", base_tag))
     }
 
     let last_tag = tags.last().unwrap();
@@ -24,6 +25,7 @@ pub fn determine_nex_tag(base_tag: &str, path: &str) -> Result<String, Box<dyn s
 }
 
 fn increment_tag(latest_found_tag: &String) ->  Result<String, Box<dyn std::error::Error>>  {
+    debug!("Incrementing found tag: {}", latest_found_tag);
     let mut p1 = latest_found_tag.split('.');
     let major = p1.next().unwrap();
     let minor = p1.next().unwrap();
@@ -46,10 +48,10 @@ pub fn query_git_tags(base_tag: &str, path: &str) -> Result<Vec<String>, Box<dyn
         .output()
         .expect("Failed to execute git tag command");
 
-    debug!("output: {}", String::from(output.status.to_string()));
+    debug!("Output: {}", String::from(output.status.to_string()));
     let stdout = String::from_utf8(output.stdout)?;
     debug!("Git tags: {}", stdout);
-    debug!("error: {}", String::from_utf8(output.stderr)?);
+    debug!("Error: {}", String::from_utf8(output.stderr)?);
     let tags: Vec<String> = stdout.lines().map(|s| s.to_string()).collect();
     Ok(tags)
 }
