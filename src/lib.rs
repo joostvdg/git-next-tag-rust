@@ -12,8 +12,12 @@ pub fn find_matches(content: &str, pattern: &str, mut writer: impl std::io::Writ
     }
 }
 
-pub fn determine_nex_tag(base_tag: &str, path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let completed_base_tag = format!("{}.*", base_tag);
+pub fn determine_nex_tag(base_tag: &str, path: &str, suffix: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut completed_base_tag = format!("{}.*", base_tag);
+    if !suffix.is_empty() {
+        completed_base_tag = format!("{}.*{}", base_tag, suffix);
+    }
+
     let tags = query_git_tags(&completed_base_tag, path).expect("Could not list git tags");
     if tags.is_empty() {
         debug!("Could not find tags, returning .0");

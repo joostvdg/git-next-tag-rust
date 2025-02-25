@@ -24,6 +24,18 @@ struct Cli {
     /// The path (file) where to output result to
     #[arg(short = 'o', long = "outputPath")]
     output_path: Option<std::path::PathBuf>,
+
+    /// If the Tag has a suffix (e.g., -rc) and you want to find x.y.z-rc-Z with the latest Z for the latest z
+    #[arg(short = 's', long = "suffix")]
+    tag_suffix: Option<String>,
+
+    /// If the release is a pre-release, and requires a suffix beyond the Major.Minor.Patch
+    #[arg(short = 'p', long = "preRelease")]
+    pre_release: Option<bool>,
+
+    /// If the suffix for a pre-release should be -<commitShaShort>, for example "0.30.0-527e2ab"
+    #[arg(short = 'c', long = "commit")]
+    commit: Option<bool>,
 }
 
 fn main()  {
@@ -37,7 +49,13 @@ fn main()  {
     debug!("{:?}", args);
 
     let path = args.path.to_str().unwrap();
-    let next_tag = git_next_tag::determine_nex_tag(&args.base_tag, path).unwrap();
+    let opt_suffix = args.tag_suffix.unwrap();
+    let mut suffix = "";
+    if !opt_suffix.is_empty() {
+        suffix = opt_suffix.as_str();
+    }
+
+    let next_tag = git_next_tag::determine_nex_tag(&args.base_tag, path, suffix).unwrap();
     info!("Next tag: {}", next_tag);
 
     if let Some(output_path) = args.output_path {

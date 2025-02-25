@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM rust AS base
 
 # amd64-specific stage
@@ -51,7 +49,7 @@ RUN echo "This stage is used on all architectures"
 RUN ls -lath /build/release
 
 # common steps
-FROM alpine/git:v2.36.3
+FROM alpine/git:2.47.2
 LABEL org.opencontainers.image.source = "https://github.com/joostvdg/git-next-tag-rust"
 LABEL org.opencontainers.image.description ="git-next-tag is a tool to help you with the next version number of your project. It is based on the git history and the tags you have created. It is a simple tool that can be used in your CI/CD pipeline to determine the next version number of your project."
 LABEL org.opencontainers.image.authors ="Joost van der Griendt <joostvdg@gmail.com>"
