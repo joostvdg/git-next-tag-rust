@@ -1,6 +1,19 @@
 use std::process::Command;
 use log::debug;
 
+pub enum VersionType {
+    Stable,
+    PreRelease,
+    PreReleaseCommit,
+}
+
+pub struct NextTagRequest {
+    pub base_tag: String,
+    pub path: String,
+    pub suffix: Option<String>,
+    pub version_type: VersionType,
+}
+
 pub fn find_matches(content: &str, pattern: &str, mut writer: impl std::io::Write) {
     let mut line_number = 0;
 
@@ -12,20 +25,91 @@ pub fn find_matches(content: &str, pattern: &str, mut writer: impl std::io::Writ
     }
 }
 
-pub fn determine_nex_tag(base_tag: &str, path: &str, suffix: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut completed_base_tag = format!("{}.*", base_tag);
-    if !suffix.is_empty() {
-        completed_base_tag = format!("{}.*{}", base_tag, suffix);
-    }
+pub fn determine_nex_tag(next_tag_request: NextTagRequest) -> Result<String, Box<dyn std::error::Error>> {
+    let completed_base_tag = format!("{}.*", next_tag_request.base_tag);
 
-    let tags = query_git_tags(&completed_base_tag, path).expect("Could not list git tags");
-    if tags.is_empty() {
-        debug!("Could not find tags, returning .0");
-        return Ok(format!("{}.0", base_tag))
-    }
+    match next_tag_request.version_type {
+        VersionType::Stable => {
+            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            if tags.is_empty() {
+                debug!("Could not find tags, returning .0");
+                return Ok(format!("{}.0", next_tag_request.base_tag))
+            }
+            let last_tag = tags.last().unwrap();
+            let incremented_tag_result = increment_tag(last_tag);
+            if incremented_tag_result.is_err() {
+                return Err(incremented_tag_result.err().unwrap());
+            }
+            let incremented_tag = incremented_tag_result?;
+            return Ok(incremented_tag);
+        },
+        VersionType::PreRelease => {
+            let suffix = next_tag_request.suffix.unwrap();
+            let completed_base_tag = format!("{}.*-{}-*", next_tag_request.base_tag, suffix);
+            let mut tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            let mut found_suffix_tag = false;
+            // if no tags are found for base tag + suffix, find the latest tag for base tag
+            if tags.is_empty() {
+                let completed_base_tag = format!("{}.*", next_tag_request.base_tag);
+                tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+                if tags.is_empty() {
+                    debug!("Could not find tags, returning .0");
+                    return Ok(format!("{}.0-{}-0", next_tag_request.base_tag, suffix))
+                }
+            } else {
+                found_suffix_tag = true;
+            }
 
-    let last_tag = tags.last().unwrap();
-    increment_tag(last_tag)
+            let last_tag = tags.last().unwrap();
+
+            if found_suffix_tag {
+                // If the suffix is found, only increment the suffix
+                // So strip of the suffix and leave it at that
+                let tag = last_tag.split('-').next().unwrap();
+                let last_suffix = last_tag.split('-').last().unwrap();
+                let last_suffix = last_suffix.parse::<i32>().unwrap();
+                let incremented_suffix = last_suffix + 1;
+                return Ok(format!("{}-{}-{}", tag, suffix, incremented_suffix));
+            } else {
+                // increment the patch version, and add the suffix with 0
+                let incremented_tag_result = increment_tag(last_tag);
+                if incremented_tag_result.is_err() {
+                    return Err(incremented_tag_result.err().unwrap());
+                }
+                let incremented_tag = incremented_tag_result?;
+                return Ok(format!("{}-{}-0", incremented_tag, suffix));
+            }
+        },
+        VersionType::PreReleaseCommit => {
+            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            if tags.is_empty() {
+                debug!("Could not find tags, returning .0");
+                return Ok(format!("{}.0", next_tag_request.base_tag))
+            }
+            let last_tag = tags.last().unwrap();
+            let incremented_tag_result = increment_tag(last_tag);
+            if incremented_tag_result.is_err() {
+                return Err(incremented_tag_result.err().unwrap());
+            }
+            let incremented_tag = incremented_tag_result?;
+            let commit_sha = get_current_commit_sha(next_tag_request.path.as_str()).expect("Could not get commit sha");
+            return Ok(format!("{}-{}", incremented_tag, commit_sha));
+        }
+    }
+}
+
+
+fn get_current_commit_sha(path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--short")
+        .arg("HEAD")
+        .current_dir(path)
+        .output()
+        .expect("Failed to execute git rev-parse command");
+
+    let stdout = String::from_utf8(output.stdout)?;
+    Ok(stdout.trim().to_string())
 }
 
 fn increment_tag(latest_found_tag: &String) ->  Result<String, Box<dyn std::error::Error>>  {
@@ -34,6 +118,8 @@ fn increment_tag(latest_found_tag: &String) ->  Result<String, Box<dyn std::erro
     let major = p1.next().unwrap();
     let minor = p1.next().unwrap();
     let patch = p1.next().unwrap();
+    // ensure we strip of any suffix
+    let patch = patch.split('-').next().unwrap();
     let patch = patch.parse::<i32>().unwrap();
     let patch = patch + 1;
     let patch = patch.to_string();

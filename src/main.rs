@@ -30,12 +30,12 @@ struct Cli {
     tag_suffix: Option<String>,
 
     /// If the release is a pre-release, and requires a suffix beyond the Major.Minor.Patch
-    #[arg(short = 'p', long = "preRelease")]
-    pre_release: Option<bool>,
+    #[arg(short = 'r', long = "preRelease")]
+    pre_release: bool,
 
     /// If the suffix for a pre-release should be -<commitShaShort>, for example "0.30.0-527e2ab"
     #[arg(short = 'c', long = "commit")]
-    commit: Option<bool>,
+    commit: bool,
 }
 
 fn main()  {
@@ -49,13 +49,28 @@ fn main()  {
     debug!("{:?}", args);
 
     let path = args.path.to_str().unwrap();
-    let opt_suffix = args.tag_suffix.unwrap();
-    let mut suffix = "";
-    if !opt_suffix.is_empty() {
-        suffix = opt_suffix.as_str();
-    }
+    let suffix = args.tag_suffix.unwrap_or("".to_string());
 
-    let next_tag = git_next_tag::determine_nex_tag(&args.base_tag, path, suffix).unwrap();
+    // Determine the version type
+    let version_type = if args.pre_release {
+        if args.commit {
+            git_next_tag::VersionType::PreReleaseCommit
+        } else {
+            git_next_tag::VersionType::PreRelease
+        }
+    } else {
+        git_next_tag::VersionType::Stable
+    };
+
+    // Construct the next tag request
+    let next_tag_request = git_next_tag::NextTagRequest {
+        base_tag: args.base_tag,
+        path: path.to_string(),
+        suffix: Some(suffix.to_string()),
+        version_type,
+    };
+
+    let next_tag = git_next_tag::determine_nex_tag(next_tag_request).unwrap();
     info!("Next tag: {}", next_tag);
 
     if let Some(output_path) = args.output_path {
