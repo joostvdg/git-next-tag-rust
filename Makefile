@@ -44,3 +44,9 @@ dpush:
 		--tag ghcr.io/joostvdg/git-next-tag:$(VERSION)-debian \
 		--build-arg BUILDKIT_INLINE_BUILDINFO_ATTRS=1 \
 		--provenance=false --sbom=false --push
+
+.PHONY: commit
+commit:
+	cargo fmt --all
+	cargo clippy --all-targets --all-features -- -D warnings
+	cargo test
