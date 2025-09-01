@@ -44,7 +44,7 @@ pub fn determine_nex_tag(
                 return Err(incremented_tag_result.err().unwrap());
             }
             let incremented_tag = incremented_tag_result?;
-            return Ok(incremented_tag);
+            Ok(incremented_tag)
         }
         VersionType::PreRelease => {
             let suffix = next_tag_request.suffix.unwrap();
@@ -69,12 +69,10 @@ pub fn determine_nex_tag(
 
             if found_suffix_tag {
                 // If the suffix is found, only increment the suffix
-                // So strip of the suffix and leave it at that
-                let tag = last_tag.split('-').next().unwrap();
-                let last_suffix = last_tag.split('-').last().unwrap();
-                let last_suffix = last_suffix.parse::<i32>().unwrap();
-                let incremented_suffix = last_suffix + 1;
-                return Ok(format!("{}-{}-{}", tag, suffix, incremented_suffix));
+                // We split the tag at the last hyphen to separate the base from the number.
+                let (base, number_str) = last_tag.rsplit_once('-').unwrap();
+                let number = number_str.parse::<i32>().unwrap();
+                Ok(format!("{}-{}", base, number + 1))
             } else {
                 // increment the patch version, and add the suffix with 0
                 let incremented_tag_result = increment_tag(last_tag);
@@ -82,7 +80,7 @@ pub fn determine_nex_tag(
                     return Err(incremented_tag_result.err().unwrap());
                 }
                 let incremented_tag = incremented_tag_result?;
-                return Ok(format!("{}-{}-0", incremented_tag, suffix));
+                Ok(format!("{}-{}-0", incremented_tag, suffix))
             }
         }
         VersionType::PreReleaseCommit => {
@@ -100,7 +98,7 @@ pub fn determine_nex_tag(
             let incremented_tag = incremented_tag_result?;
             let commit_sha = get_current_commit_sha(next_tag_request.path.as_str())
                 .expect("Could not get commit sha");
-            return Ok(format!("{}-{}", incremented_tag, commit_sha));
+            Ok(format!("{}-{}", incremented_tag, commit_sha))
         }
     }
 }
@@ -147,7 +145,7 @@ pub fn query_git_tags(
         .output()
         .expect("Failed to execute git tag command");
 
-    debug!("Output: {}", String::from(output.status.to_string()));
+    debug!("Output: {}", output.status.to_string());
     let stdout = String::from_utf8(output.stdout)?;
     debug!("Git tags: {}", stdout);
     debug!("Error: {}", String::from_utf8(output.stderr)?);
