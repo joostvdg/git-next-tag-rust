@@ -145,7 +145,7 @@ pub fn query_git_tags(
         .output()
         .expect("Failed to execute git tag command");
 
-    debug!("Output: {}", output.status.to_string());
+    debug!("Output: {}", output.status);
     let stdout = String::from_utf8(output.stdout)?;
     debug!("Git tags: {}", stdout);
     debug!("Error: {}", String::from_utf8(output.stderr)?);
