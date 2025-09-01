@@ -13,6 +13,10 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
     - uses: actions/checkout@v4
       with:
@@ -55,8 +59,8 @@ jobs:
         file: coverage/cobertura.xml
         fail_ci_if_error: true
 
-  dependency-scan:
-    name: Dependency Scan
+  scans:
+    name: Scans
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -85,60 +89,13 @@ jobs:
     - name: Check for outdated dependencies
       run: cargo outdated --exit-code 1
 
-  sonarqube:
-    name: SonarQube Analysis
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/cache
-          ~/.cargo/registry
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Generate coverage report for SonarQube
-      run: |
-        cargo install cargo-tarpaulin
-        cargo tarpaulin --out xml --output-dir coverage/
-
-    - name: Analyze with SonarCloud
-
-      # You can pin the exact commit or the version.
-      # uses: SonarSource/sonarcloud-github-action@v2.2.0
-      uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # Generate a token on Sonarcloud.io, add it to the secrets of this repo with the name SONAR_TOKEN (Settings > Secrets > Actions > add new repository secret)
-      with:
-        # Additional arguments for the SonarScanner CLI
-        args:
-          # Unique keys of your project and organization. You can find them in SonarCloud > Information (bottom-left menu)
-          # mandatory
-          -Dsonar.projectKey=git-next-tag-rust
-          -Dsonar.organization=joostvdg
-          # Comma-separated paths to directories containing main source files.
-          #-Dsonar.sources= # optional, default is project base directory
-          # Comma-separated paths to directories containing test source files.
-          #-Dsonar.tests= # optional. For more info about Code Coverage, please refer to https://docs.sonarcloud.io/enriching/test-coverage/overview/
-          # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
-        #-Dsonar.verbose= # optional, default is false
-        # When you need the analysis to take place in a directory other than the one from which it was launched, default is .
-        projectBaseDir: .
-
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
 
   build-docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [test, dependency-scan]
+    needs: [test, scans]
     if: github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
