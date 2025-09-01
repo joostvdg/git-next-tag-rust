@@ -1,14 +1,14 @@
-use std::io::Write;
 use clap::Parser;
-use clap_verbosity_flag::{Verbosity};
-use log::{info};
+use clap_verbosity_flag::Verbosity;
 use env_logger::{Builder, Target};
+use log::info;
+use std::io::Write;
 
 #[macro_use]
 extern crate log;
 
 /// Search for a pattern in a file and display the lines that contain it.
-#[derive(Debug,Parser)]
+#[derive(Debug, Parser)]
 struct Cli {
     #[command(flatten)]
     verbose: Verbosity,
@@ -38,11 +38,12 @@ struct Cli {
     commit: bool,
 }
 
-fn main()  {
+fn main() {
     let args = Cli::parse();
 
     let mut builder = Builder::from_default_env();
-    builder.target(Target::Stdout)
+    builder
+        .target(Target::Stdout)
         .filter_level(args.verbose.log_level_filter())
         .init();
     debug!("Starting up");
@@ -77,5 +78,4 @@ fn main()  {
         let mut file = std::fs::File::create(output_path).unwrap();
         file.write_all(next_tag.as_bytes()).unwrap();
     }
-
 }

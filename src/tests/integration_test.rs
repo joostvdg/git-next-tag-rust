@@ -38,7 +38,9 @@ fn return_next_tag() -> Result<(), Box<dyn std::error::Error>> {
         .arg(project_root_dir)
         .arg("-vvv");
 
-    cmd.assert().success().stdout(predicate::str::contains("v0.1.1"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("v0.1.1"));
     Ok(())
 }
 
@@ -51,21 +53,27 @@ fn return_next_tag_zero_if_none() -> Result<(), Box<dyn std::error::Error>> {
         .arg(".")
         .arg("-vvv");
 
-    cmd.assert().success().stdout(predicate::str::contains("100.0.0"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("100.0.0"));
     Ok(())
 }
 
 #[test]
 fn fail_on_missing_base_tag() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("git-next-tag")?;
-    cmd.assert().failure().stderr(predicate::str::contains("the following required arguments were not provided"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "the following required arguments were not provided",
+    ));
     Ok(())
 }
 
 #[test]
 fn fail_with_no_arguments() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("git-next-tag")?;
-    cmd.assert().failure().stderr(predicate::str::contains("Usage"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
     Ok(())
 }
 
@@ -84,15 +92,15 @@ fn verify_prerelease_commit_suffix() -> Result<(), Box<dyn std::error::Error>> {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("v0.1.1-")
-            .and(predicate::function(|output: &str| {
+        .stdout(
+            predicate::str::contains("v0.1.1-").and(predicate::function(|output: &str| {
                 // Check if the output contains a 7-character alphanumeric suffix after the version
-                output.lines()
-                    .any(|line| {
-                        let parts: Vec<&str> = line.split('-').collect();
-                        parts.len() >= 2 && parts.last().unwrap().trim().len() == 7
-                    })
-            })));
+                output.lines().any(|line| {
+                    let parts: Vec<&str> = line.split('-').collect();
+                    parts.len() >= 2 && parts.last().unwrap().trim().len() == 7
+                })
+            })),
+        );
     Ok(())
 }
 
@@ -103,7 +111,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
     // Scenario 1: New base tag, should get .0-rc-0
     let mut cmd = Command::cargo_bin("git-next-tag")?;
     cmd.arg("--baseTag")
-        .arg("v0.3")  // v0.1.0, and various v0.2.*-rc-* exist, but no v0.3.*-rc-* exists
+        .arg("v0.3") // v0.1.0, and various v0.2.*-rc-* exist, but no v0.3.*-rc-* exists
         .arg("--path")
         .arg(&project_root_dir)
         .arg("--preRelease")
@@ -118,7 +126,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
     // Scenario 2: Existing base tag without rc, should get .z+1-rc-0
     let mut cmd = Command::cargo_bin("git-next-tag")?;
     cmd.arg("--baseTag")
-        .arg("v0.1")  // v0.1.0, and various v0.2.*-rc-* exist
+        .arg("v0.1") // v0.1.0, and various v0.2.*-rc-* exist
         .arg("--path")
         .arg(&project_root_dir)
         .arg("--preRelease")
@@ -133,7 +141,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
     // Scenario 3: Existing tag with rc, should increment rc number
     let mut cmd = Command::cargo_bin("git-next-tag")?;
     cmd.arg("--baseTag")
-        .arg("v0.2")  // v0.2.0-rc-0, v0.2.0-rc-1, v0.2.1-rc-0 exist
+        .arg("v0.2") // v0.2.0-rc-0, v0.2.0-rc-1, v0.2.1-rc-0 exist
         .arg("--path")
         .arg(&project_root_dir)
         .arg("--preRelease")

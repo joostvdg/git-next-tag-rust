@@ -1,5 +1,5 @@
-use std::process::Command;
 use log::debug;
+use std::process::Command;
 
 pub enum VersionType {
     Stable,
@@ -25,15 +25,18 @@ pub fn find_matches(content: &str, pattern: &str, mut writer: impl std::io::Writ
     }
 }
 
-pub fn determine_nex_tag(next_tag_request: NextTagRequest) -> Result<String, Box<dyn std::error::Error>> {
+pub fn determine_nex_tag(
+    next_tag_request: NextTagRequest,
+) -> Result<String, Box<dyn std::error::Error>> {
     let completed_base_tag = format!("{}.*", next_tag_request.base_tag);
 
     match next_tag_request.version_type {
         VersionType::Stable => {
-            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
+                .expect("Could not list git tags");
             if tags.is_empty() {
                 debug!("Could not find tags, returning .0");
-                return Ok(format!("{}.0", next_tag_request.base_tag))
+                return Ok(format!("{}.0", next_tag_request.base_tag));
             }
             let last_tag = tags.last().unwrap();
             let incremented_tag_result = increment_tag(last_tag);
@@ -42,19 +45,21 @@ pub fn determine_nex_tag(next_tag_request: NextTagRequest) -> Result<String, Box
             }
             let incremented_tag = incremented_tag_result?;
             return Ok(incremented_tag);
-        },
+        }
         VersionType::PreRelease => {
             let suffix = next_tag_request.suffix.unwrap();
             let completed_base_tag = format!("{}.*-{}-*", next_tag_request.base_tag, suffix);
-            let mut tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            let mut tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
+                .expect("Could not list git tags");
             let mut found_suffix_tag = false;
             // if no tags are found for base tag + suffix, find the latest tag for base tag
             if tags.is_empty() {
                 let completed_base_tag = format!("{}.*", next_tag_request.base_tag);
-                tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+                tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
+                    .expect("Could not list git tags");
                 if tags.is_empty() {
                     debug!("Could not find tags, returning .0");
-                    return Ok(format!("{}.0-{}-0", next_tag_request.base_tag, suffix))
+                    return Ok(format!("{}.0-{}-0", next_tag_request.base_tag, suffix));
                 }
             } else {
                 found_suffix_tag = true;
@@ -79,12 +84,13 @@ pub fn determine_nex_tag(next_tag_request: NextTagRequest) -> Result<String, Box
                 let incremented_tag = incremented_tag_result?;
                 return Ok(format!("{}-{}-0", incremented_tag, suffix));
             }
-        },
+        }
         VersionType::PreReleaseCommit => {
-            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str()).expect("Could not list git tags");
+            let tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
+                .expect("Could not list git tags");
             if tags.is_empty() {
                 debug!("Could not find tags, returning .0");
-                return Ok(format!("{}.0", next_tag_request.base_tag))
+                return Ok(format!("{}.0", next_tag_request.base_tag));
             }
             let last_tag = tags.last().unwrap();
             let incremented_tag_result = increment_tag(last_tag);
@@ -92,12 +98,12 @@ pub fn determine_nex_tag(next_tag_request: NextTagRequest) -> Result<String, Box
                 return Err(incremented_tag_result.err().unwrap());
             }
             let incremented_tag = incremented_tag_result?;
-            let commit_sha = get_current_commit_sha(next_tag_request.path.as_str()).expect("Could not get commit sha");
+            let commit_sha = get_current_commit_sha(next_tag_request.path.as_str())
+                .expect("Could not get commit sha");
             return Ok(format!("{}-{}", incremented_tag, commit_sha));
         }
     }
 }
-
 
 fn get_current_commit_sha(path: &str) -> Result<String, Box<dyn std::error::Error>> {
     let output = Command::new("git")
@@ -112,7 +118,7 @@ fn get_current_commit_sha(path: &str) -> Result<String, Box<dyn std::error::Erro
     Ok(stdout.trim().to_string())
 }
 
-fn increment_tag(latest_found_tag: &String) ->  Result<String, Box<dyn std::error::Error>>  {
+fn increment_tag(latest_found_tag: &String) -> Result<String, Box<dyn std::error::Error>> {
     debug!("Incrementing found tag: {}", latest_found_tag);
     let mut p1 = latest_found_tag.split('.');
     let major = p1.next().unwrap();
@@ -126,7 +132,10 @@ fn increment_tag(latest_found_tag: &String) ->  Result<String, Box<dyn std::erro
     Ok(format!("{}.{}.{}", major, minor, patch))
 }
 
-pub fn query_git_tags(base_tag: &str, path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn query_git_tags(
+    base_tag: &str,
+    path: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let output = Command::new("git")
         .arg("--no-pager")
         .arg("tag")
