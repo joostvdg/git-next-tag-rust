@@ -78,7 +78,10 @@ fi \
 && cargo build --release --bin git-next-tag --target $TARGET && mv /app/target/$TARGET/release /build/release
 
 
-FROM bitnami/git:2.40.0
+#FROM bitnami/git:2.40.0
+#FROM alpine/git:2.47.2
+FROM cgr.dev/chainguard/git:latest
+
 LABEL org.opencontainers.image.source = "https://github.com/joostvdg/git-next-tag-rust"
 WORKDIR /work/
 
@@ -90,8 +93,3 @@ RUN  ./git-next-tag --help
 RUN git config --global safe.directory '*'
 ENTRYPOINT ["./git-next-tag"]
 CMD ["--help"]
-
-## TODO - Verify ARM build
-## TODO - Verify x86_64 Alpine build
-## TODO - Verify ARM Alpine build
-## TODO - looks like caching doesn't work because cross compilation
