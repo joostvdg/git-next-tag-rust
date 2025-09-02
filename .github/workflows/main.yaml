@@ -94,8 +94,6 @@ jobs:
     - name: Check for outdated dependencies
       run: cargo outdated --exit-code 1
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
 
   security-scan:
     runs-on: ubuntu-latest
@@ -118,12 +116,14 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Run Snyk security scan
-        uses: snyk/actions/maven@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
+# Isn't supported by default yet
+#      - name: Snyk Setup
+#        uses: snyk/actions/setup@master
+#
+#      - name: Snyk monitor
+#        run: snyk test --file=Cargo.toml
+#        env:
+#          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   generate-version:
     runs-on: ubuntu-latest
