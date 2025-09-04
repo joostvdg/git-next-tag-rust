@@ -194,13 +194,14 @@ jobs:
             type=raw,value=latest
             type=raw,value=${{ needs.generate-version.outputs.version }}
             type=sha,prefix={{branch}}-
+      
 
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile
+          file: docker/alpine/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
