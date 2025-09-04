@@ -30,7 +30,7 @@ FROM base AS dependencies
 WORKDIR /app
 #initialize an empty application & replace the dependencies file with our own (yes cargo chef can do this, but I feel this is simpler...)
 RUN cargo init
-COPY Cargo.toml Cargo.lock /app
+COPY Cargo.toml /app
 ARG TARGETPLATFORM
 RUN \
 if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
