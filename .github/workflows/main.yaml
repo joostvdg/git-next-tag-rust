@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
-  IMAGE_NAME: joostvdg/git-next-tag
+  IMAGE_NAME: joostvdg/git-next-tag-rust
 
 jobs:
   test:

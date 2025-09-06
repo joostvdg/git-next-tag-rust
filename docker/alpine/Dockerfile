@@ -1,7 +1,7 @@
 FROM rust AS base
 
 # amd64-specific stage
-FROM base as build-amd64
+FROM base AS build-amd64
 WORKDIR /usr/src/git-next-tag
 ENV TARGET=x86_64-unknown-linux-musl
 RUN apt update && apt install -y g++-mingw-w64-x86-64 musl-tools
@@ -18,11 +18,10 @@ RUN mkdir -p /build
 RUN cargo build --release --target=$TARGET && mv /usr/src/git-next-tag/target/$TARGET/release /build/release
 
 # arm64-specific stage
-FROM base as build-arm64
+FROM base AS build-arm64
 ARG APP_NAME="app"
 ARG TARGET="aarch64-unknown-linux-musl"
-RUN apt-get update
-RUN apt-get install clang llvm -y
+RUN apt-get update && apt-get install clang llvm -y
 RUN rustup target add $TARGET
 RUN mkdir /usr/src/$APP_NAME
 WORKDIR /usr/src/$APP_NAME
@@ -48,9 +47,9 @@ RUN ls -lath /build/release
 
 # common steps
 FROM alpine/git:2.47.2
-LABEL org.opencontainers.image.source = "https://github.com/joostvdg/git-next-tag-rust"
-LABEL org.opencontainers.image.description ="git-next-tag is a tool to help you with the next version number of your project. It is based on the git history and the tags you have created. It is a simple tool that can be used in your CI/CD pipeline to determine the next version number of your project."
-LABEL org.opencontainers.image.authors ="Joost van der Griendt <joostvdg@gmail.com>"
+LABEL org.opencontainers.image.source="https://github.com/joostvdg/git-next-tag-rust"
+LABEL org.opencontainers.image.description="git-next-tag is a tool to help you with the next version number of your project. It is based on the git history and the tags you have created. It is a simple tool that can be used in your CI/CD pipeline to determine the next version number of your project."
+LABEL org.opencontainers.image.authors="Joost van der Griendt <joostvdg@gmail.com>"
 WORKDIR /work/
 
 RUN addgroup -S appgroup && adduser -D -u 1000 gitnexttag -G appgroup -h /work
