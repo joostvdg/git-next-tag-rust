@@ -159,6 +159,31 @@ jobs:
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "Generated version: $NEW_VERSION"
 
+  build-macos-arm64:
+    runs-on: macos-15
+    needs: [generate-version]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add Mac ARM64 target
+        run: rustup target add aarch64-apple-darwin
+
+      - name: Build Mac ARM64
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Prepare Mac ARM64 artifact
+        run: |
+          mkdir -p dist
+          cp target/aarch64-apple-darwin/release/git-next-tag-rust dist/git-next-tag-rust-macos-arm64
+
+      - name: Upload Mac ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-binary-macos-arm64
+          path: dist/
+
   build-artifacts:
     runs-on: ubuntu-latest
     needs: [generate-version]
@@ -178,19 +203,13 @@ jobs:
       - name: Build Windows AMD64
         run: cross build --release --target x86_64-pc-windows-gnu
 
-      - name: Add Mac Rust to PATH
-        run: rustup target add aarch64-apple-darwin
-      - name: Build Mac ARM64
-        run: cross build --release --target aarch64-apple-darwin
+
 
       - name: Prepare artifacts
         run: |
           mkdir -p dist
           cp target/x86_64-unknown-linux-gnu/release/git-next-tag-rust dist/git-next-tag-rust-linux-amd64
           cp target/x86_64-pc-windows-gnu/release/git-next-tag-rust.exe dist/git-next-tag-rust-windows-amd64.exe
-          cp target/aarch64-apple-darwin/release/git-next-tag-rust dist/git-next-tag-rust-macos-arm64
-          cd dist
-          sha256sum * > checksums.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -288,7 +307,7 @@ jobs:
           args: --severity-threshold=high
 
   create-release:
-    needs: [generate-version, build-and-push, image-security-scan]
+    needs: [generate-version, build-and-push, image-security-scan, build-artifacts, build-macos-arm64]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -320,29 +339,22 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Download build artifacts
+      - name: Download Linux/Windows build artifacts
         uses: actions/download-artifact@v4
         with:
           name: cli-binaries
           path: dist/
 
-      - name: Create GitHub release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Mac ARM64 build artifact
+        uses: actions/download-artifact@v4
         with:
-          tag_name: v${{ needs.generate-version.outputs.version }}
-          release_name: Release v${{ needs.generate-version.outputs.version }}
-          body: |
-            ## Changes
-            - Automated release v${{ needs.generate-version.outputs.version }}
+          name: cli-binary-macos-arm64
+          path: dist/
 
-            ## Container Image
-            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.generate-version.outputs.version }}`
-            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.image-digest }}`
-
-          draft: false
-          prerelease: false
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum git-next-tag-rust-linux-amd64 git-next-tag-rust-windows-amd64.exe git-next-tag-rust-macos-arm64 > checksums.txt
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
