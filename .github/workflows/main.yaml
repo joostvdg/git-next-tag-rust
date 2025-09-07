@@ -9,7 +9,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
-  IMAGE_NAME: joostvdg/git-next-tag-rust
+  IMAGE_NAME: joostvdg/git-next-tag-rustasd
+
 
 jobs:
   test:
@@ -158,6 +159,43 @@ jobs:
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "Generated version: $NEW_VERSION"
 
+  build-artifacts:
+    runs-on: ubuntu-latest
+    needs: [generate-version]
+    outputs:
+      version: ${{ needs.generate-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build Linux AMD64
+        run: cross build --release --target x86_64-unknown-linux-gnu
+
+      - name: Build Windows AMD64
+        run: cross build --release --target x86_64-pc-windows-gnu
+
+      - name: Build Mac ARM64
+        run: cross build --release --target aarch64-apple-darwin
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-gnu/release/git-next-tag-rust dist/git-next-tag-rust-linux-amd64
+          cp target/x86_64-pc-windows-gnu/release/git-next-tag-rust.exe dist/git-next-tag-rust-windows-amd64.exe
+          cp target/aarch64-apple-darwin/release/git-next-tag-rust dist/git-next-tag-rust-macos-arm64
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-binaries
+          path: dist/
+
   build-and-push:
     needs: [scans, test, security-scan, generate-version]
     runs-on: ubuntu-latest
@@ -280,3 +318,36 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-binaries
+          path: dist/
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.generate-version.outputs.version }}
+          release_name: Release v${{ needs.generate-version.outputs.version }}
+          body: |
+            ## Changes
+            - Automated release v${{ needs.generate-version.outputs.version }}
+
+            ## Container Image
+            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.generate-version.outputs.version }}`
+            - `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.image-digest }}`
+
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.generate-version.outputs.version }}
+          files: |
+            dist/git-next-tag-rust-linux-amd64
+            dist/git-next-tag-rust-windows-amd64.exe
+            dist/git-next-tag-rust-macos-arm64
+            dist/checksums.txt
