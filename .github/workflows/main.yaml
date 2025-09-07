@@ -178,6 +178,8 @@ jobs:
       - name: Build Windows AMD64
         run: cross build --release --target x86_64-pc-windows-gnu
 
+      - name: Add Mac Rust to PATH
+        run: rustup target add aarch64-apple-darwin
       - name: Build Mac ARM64
         run: cross build --release --target aarch64-apple-darwin
 
