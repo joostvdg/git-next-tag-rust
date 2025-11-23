@@ -8,12 +8,14 @@ use assert_fs::prelude::*; // Used for creating a file named "lorem.txt"
 
 use std::path::PathBuf;
 
+use assert_cmd::cargo;
+
 #[test]
 fn writes_output_to_file() -> Result<(), Box<dyn std::error::Error>> {
     let project_root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let temp = assert_fs::TempDir::new()?;
     let output_path = temp.child("output.txt");
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("100.0")
         .arg("--path")
@@ -31,7 +33,7 @@ fn writes_output_to_file() -> Result<(), Box<dyn std::error::Error>> {
 fn return_next_tag() -> Result<(), Box<dyn std::error::Error>> {
     let project_root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("v0.1")
         .arg("--path")
@@ -46,7 +48,7 @@ fn return_next_tag() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn return_next_tag_zero_if_none() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("100.0")
         .arg("--path")
@@ -61,7 +63,7 @@ fn return_next_tag_zero_if_none() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn fail_on_missing_base_tag() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.assert().failure().stderr(predicate::str::contains(
         "the following required arguments were not provided",
     ));
@@ -70,7 +72,7 @@ fn fail_on_missing_base_tag() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn fail_with_no_arguments() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("Usage"));
@@ -81,7 +83,7 @@ fn fail_with_no_arguments() -> Result<(), Box<dyn std::error::Error>> {
 fn verify_prerelease_commit_suffix() -> Result<(), Box<dyn std::error::Error>> {
     let project_root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("v0.1")
         .arg("--path")
@@ -109,7 +111,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
     let project_root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     // Scenario 1: New base tag, should get .0-rc-0
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("v0.100") // v0.1.0, and various v0.2.*-rc-* exist, but no v0.3.*-rc-* exists
         .arg("--path")
@@ -124,7 +126,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
         .stdout(predicate::str::contains("v0.100.0-rc-0"));
 
     // Scenario 2: Existing base tag without rc, should get .z+1-rc-0
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("v0.1") // v0.1.0, and various v0.2.*-rc-* exist
         .arg("--path")
@@ -139,7 +141,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
         .stdout(predicate::str::contains("v0.1.1-rc-1"));
 
     // Scenario 3: Existing tag with rc, should increment rc number
-    let mut cmd = Command::cargo_bin("git-next-tag")?;
+    let mut cmd = Command::new(cargo::cargo_bin!("git-next-tag"));
     cmd.arg("--baseTag")
         .arg("v0.2") // v0.2.3, v0.2.3 v0.2.0-rc-0, v0.2.0-rc-1, v0.2.1-rc-0 exist
         .arg("--path")
