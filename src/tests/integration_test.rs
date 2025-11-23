@@ -111,7 +111,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
     // Scenario 1: New base tag, should get .0-rc-0
     let mut cmd = Command::cargo_bin("git-next-tag")?;
     cmd.arg("--baseTag")
-        .arg("v0.3") // v0.1.0, and various v0.2.*-rc-* exist, but no v0.3.*-rc-* exists
+        .arg("v0.100") // v0.1.0, and various v0.2.*-rc-* exist, but no v0.3.*-rc-* exists
         .arg("--path")
         .arg(&project_root_dir)
         .arg("--preRelease")
@@ -121,7 +121,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("v0.3.0-rc-0"));
+        .stdout(predicate::str::contains("v0.100.0-rc-0"));
 
     // Scenario 2: Existing base tag without rc, should get .z+1-rc-0
     let mut cmd = Command::cargo_bin("git-next-tag")?;
@@ -136,12 +136,12 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("v0.1.1-rc-0"));
+        .stdout(predicate::str::contains("v0.1.1-rc-1"));
 
     // Scenario 3: Existing tag with rc, should increment rc number
     let mut cmd = Command::cargo_bin("git-next-tag")?;
     cmd.arg("--baseTag")
-        .arg("v0.2") // v0.2.0-rc-0, v0.2.0-rc-1, v0.2.1-rc-0 exist
+        .arg("v0.2") // v0.2.3, v0.2.3 v0.2.0-rc-0, v0.2.0-rc-1, v0.2.1-rc-0 exist
         .arg("--path")
         .arg(&project_root_dir)
         .arg("--preRelease")
@@ -151,7 +151,7 @@ fn verify_prerelease_rc_suffix_scenarios() -> Result<(), Box<dyn std::error::Err
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("v0.2.1-rc-1")); // Should increment only the rc number
+        .stdout(predicate::str::contains("v0.2.5-rc-0")); // Should increment only the rc number
 
     Ok(())
 }

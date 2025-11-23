@@ -48,39 +48,34 @@ pub fn determine_nex_tag(
         }
         VersionType::PreRelease => {
             let suffix = next_tag_request.suffix.unwrap();
-            let completed_base_tag = format!("{}.*-{}-*", next_tag_request.base_tag, suffix);
-            let mut tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
-                .expect("Could not list git tags");
-            let mut found_suffix_tag = false;
-            // if no tags are found for base tag + suffix, find the latest tag for base tag
-            if tags.is_empty() {
-                let completed_base_tag = format!("{}.*", next_tag_request.base_tag);
-                tags = query_git_tags(&completed_base_tag, next_tag_request.path.as_str())
-                    .expect("Could not list git tags");
-                if tags.is_empty() {
-                    debug!("Could not find tags, returning .0");
-                    return Ok(format!("{}.0-{}-0", next_tag_request.base_tag, suffix));
-                }
+
+            // 1. Find the latest stable tag for the base.
+            let stable_tags_pattern = format!("{}.*", next_tag_request.base_tag);
+            let stable_tags = query_git_tags(&stable_tags_pattern, next_tag_request.path.as_str())?
+                .into_iter()
+                .filter(|t| !t.contains('-'))
+                .collect::<Vec<String>>();
+
+            let next_stable_tag = if stable_tags.is_empty() {
+                format!("{}.0", next_tag_request.base_tag)
             } else {
-                found_suffix_tag = true;
-            }
+                increment_tag(stable_tags.last().unwrap())?
+            };
 
-            let last_tag = tags.last().unwrap();
+            // 2. Find pre-release tags for the *next* stable version.
+            let pre_release_pattern = format!("{}-{}-*", next_stable_tag, suffix);
+            let pre_release_tags =
+                query_git_tags(&pre_release_pattern, next_tag_request.path.as_str())?;
 
-            if found_suffix_tag {
-                // If the suffix is found, only increment the suffix
-                // We split the tag at the last hyphen to separate the base from the number.
-                let (base, number_str) = last_tag.rsplit_once('-').unwrap();
+            if pre_release_tags.is_empty() {
+                // No pre-releases for the next version, start with -0.
+                Ok(format!("{}-{}-0", next_stable_tag, suffix))
+            } else {
+                // Increment the existing pre-release number.
+                let last_pre_release_tag = pre_release_tags.last().unwrap();
+                let (base, number_str) = last_pre_release_tag.rsplit_once('-').unwrap();
                 let number = number_str.parse::<i32>().unwrap();
                 Ok(format!("{}-{}", base, number + 1))
-            } else {
-                // increment the patch version, and add the suffix with 0
-                let incremented_tag_result = increment_tag(last_tag);
-                if incremented_tag_result.is_err() {
-                    return Err(incremented_tag_result.err().unwrap());
-                }
-                let incremented_tag = incremented_tag_result?;
-                Ok(format!("{}-{}-0", incremented_tag, suffix))
             }
         }
         VersionType::PreReleaseCommit => {
